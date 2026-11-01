@@ -106,3 +106,151 @@ promise_test(async t => {
 
   assert_equals(await getCookieStringHttp(), 'HTTPONLY-cookie=value', 'HttpOnly cookie is not deleted');
 }, 'HttpOnly cookies are not deleted/overwritten');
+
+// Additional test: HttpOnly cookie should not appear in getAll()
+promise_test(async t => {
+  await setCookieStringHttp('HTTPONLY-cookie=value; path=/; httponly');
+  t.add_cleanup(async () => {
+    await setCookieStringHttp(`HTTPONLY-cookie=DELETED; path=/; httponly; Max-Age=0`);
+  });
+  await cookieStore.set('visible-cookie', 'visible-value');
+  t.add_cleanup(async () => {
+    await cookieStore.delete('visible-cookie');
+  });
+
+  const cookies = await cookieStore.getAll();
+  const cookieNames = cookies.map(c => c.name);
+  assert_false(cookieNames.includes('HTTPONLY-cookie'),
+    'HttpOnly cookie should not appear in getAll()');
+  assert_true(cookieNames.includes('visible-cookie'),
+    'Visible cookie should appear in getAll()');
+}, 'HttpOnly cookie should not appear in getAll()');
+
+// Additional test: HttpOnly cookie with SameSite attribute
+promise_test(async t => {
+  await setCookieStringHttp('HTTPONLY-samesite=value; path=/; httponly; SameSite=Strict');
+  t.add_cleanup(async () => {
+    await setCookieStringHttp(`HTTPONLY-samesite=DELETED; path=/; httponly; SameSite=Strict; Max-Age=0`);
+  });
+
+  assert_equals(
+      await getCookieString(),
+      undefined,
+      'HttpOnly cookie with SameSite=Strict is invisible to script');
+  assert_equals(
+      await getCookieStringHttp(),
+      'HTTPONLY-samesite=value',
+    'HttpOnly cookie with SameSite=Strict is visible via HTTP');
+}, 'HttpOnly cookie with SameSite=Strict attribute');
+
+// Additional test: HttpOnly cookie with Secure attribute
+promise_test(async t => {
+  await setCookieStringHttp('HTTPONLY-secure=value; path=/; httponly; Secure');
+  t.add_cleanup(async () => {
+    await setCookieStringHttp(`HTTPONLY-secure=DELETED; path=/; httponly; Secure; Max-Age=0`);
+  });
+
+  assert_equals(
+      await getCookieString(),
+      undefined,
+      'HttpOnly cookie with Secure is invisible to script');
+  assert_equals(
+      await getCookieStringHttp(),
+      'HTTPONLY-secure=value',
+    'HttpOnly cookie with Secure is visible via HTTP');
+}, 'HttpOnly cookie with Secure attribute');
+
+// Additional test: HttpOnly cookie with Domain attribute
+promise_test(async t => {
+  const currentUrl = new URL(self.location.href);
+  const currentDomain = currentUrl.hostname;
+
+  await setCookieStringHttp(`HTTPONLY-domain=value; path=/; httponly; Domain=${currentDomain}`);
+  t.add_cleanup(async () => {
+    await setCookieStringHttp(`HTTPONLY-domain=DELETED; path=/; httponly; Domain=${currentDomain}; Max-Age=0`);
+  });
+
+  assert_equals(
+      await getCookieString(),
+      undefined,
+      'HttpOnly cookie with Domain is invisible to script');
+  assert_equals(
+      await getCookieStringHttp(),
+      `HTTPONLY-domain=value`,
+    'HttpOnly cookie with Domain is visible via HTTP');
+}, 'HttpOnly cookie with Domain attribute');
+
+// Additional test: HttpOnly cookie with Path attribute
+promise_test(async t => {
+  const currentUrl = new URL(self.location.href);
+  const currentPath = currentUrl.pathname;
+  const currentDirectory =
+      currentPath.substr(0, currentPath.lastIndexOf('/') + 1);
+
+  await setCookieStringHttp(`HTTPONLY-path=value; path=${currentDirectory}; httponly`);
+  t.add_cleanup(async () => {
+    await setCookieStringHttp(`HTTPONLY-path=DELETED; path=${currentDirectory}; httponly; Max-Age=0`);
+  });
+
+  assert_equals(
+      await getCookieString(),
+      undefined,
+      'HttpOnly cookie with Path is invisible to script');
+  assert_equals(
+      await getCookieStringHttp(),
+      `HTTPONLY-path=value`,
+    'HttpOnly cookie with Path is visible via HTTP');
+}, 'HttpOnly cookie with Path attribute');
+
+// Additional test: HttpOnly cookie expiration
+promise_test(async t => {
+  await setCookieStringHttp('HTTPONLY-expire=value; path=/; httponly; max-age=0');
+  t.add_cleanup(async () => {
+    await setCookieStringHttp(`HTTPONLY-expire=DELETED; path=/; httponly; Max-Age=0`);
+  });
+
+  assert_equals(
+      await getCookieString(),
+      undefined,
+      'Expired HttpOnly cookie is invisible to script');
+  assert_equals(
+      await getCookieStringHttp(),
+      undefined,
+    'Expired HttpOnly cookie is not visible via HTTP');
+}, 'HttpOnly cookie with max-age=0 expires immediately');
+
+// Additional test: Multiple HttpOnly cookies
+promise_test(async t => {
+  await setCookieStringHttp('HTTPONLY-multi1=value1; path=/; httponly');
+  await setCookieStringHttp('HTTPONLY-multi2=value2; path=/; httponly');
+  t.add_cleanup(async () => {
+    await setCookieStringHttp(`HTTPONLY-multi1=DELETED; path=/; httponly; Max-Age=0`);
+    await setCookieStringHttp(`HTTPONLY-multi2=DELETED; path=/; httponly; Max-Age=0`);
+  });
+
+  assert_equals(
+      await getCookieString(),
+      undefined,
+      'Multiple HttpOnly cookies are invisible to script');
+  assert_equals(
+      await getCookieStringHttp(),
+      'HTTPONLY-multi1=value1; HTTPONLY-multi2=value2',
+    'Multiple HttpOnly cookies are visible via HTTP');
+}, 'Multiple HttpOnly cookies');
+
+// Additional test: HttpOnly cookie with Partitioned attribute
+promise_test(async t => {
+  await setCookieStringHttp('HTTPONLY-partitioned=value; path=/; httponly; Partitioned');
+  t.add_cleanup(async () => {
+    await setCookieStringHttp(`HTTPONLY-partitioned=DELETED; path=/; httponly; Partitioned; Max-Age=0`);
+  });
+
+  assert_equals(
+      await getCookieString(),
+      undefined,
+      'HttpOnly cookie with Partitioned is invisible to script');
+  assert_equals(
+      await getCookieStringHttp(),
+      'HTTPONLY-partitioned=value',
+    'HttpOnly cookie with Partitioned is visible via HTTP');
+}, 'HttpOnly cookie with Partitioned attribute');
