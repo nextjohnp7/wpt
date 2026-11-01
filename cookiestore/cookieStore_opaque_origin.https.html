@@ -82,4 +82,51 @@ promise_test(async t => {
                 'cookieStore.addEventListener should not throw');
 }, 'cookieStore in sandboxed iframe --- listener access');
 
+// Additional test: sandbox with allow-same-origin should still throw SecurityError
+promise_test(async t => {
+  for (apiCall in apiCalls) {
+    const iframe = await load_iframe(apiCalls[apiCall], 'allow-same-origin');
+    iframe.contentWindow.postMessage({}, '*');
+    const message = await wait_for_message(iframe);
+    assert_equals(message.result, 'SecurityError',
+      'cookieStore ${apiCall} with allow-same-origin should throw SecurityError');
+  }
+}, 'cookieStore in sandboxed iframe with allow-same-origin should throw SecurityError');
+
+// Additional test: sandbox with allow-same-origin allow-scripts should still throw SecurityError
+promise_test(async t => {
+  for (apiCall in apiCalls) {
+    const iframe = await load_iframe(apiCalls[apiCall], 'allow-same-origin allow-scripts');
+    iframe.contentWindow.postMessage({}, '*');
+    const message = await wait_for_message(iframe);
+    assert_equals(message.result, 'SecurityError',
+      'cookieStore ${apiCall} with allow-same-origin allow-scripts should throw SecurityError');
+  }
+}, 'cookieStore in sandboxed iframe with allow-same-origin allow-scripts should throw SecurityError');
+
+// Additional test: sandbox without allow-scripts should not execute script at all
+promise_test(async t => {
+  const apiCall = 'cookieStore.get("cookie-name")';
+  const iframe = await load_iframe(apiCall, '');
+  iframe.contentWindow.postMessage({}, '*');
+  // Without allow-scripts, the script won't execute, so no message will be sent
+  // The test verifies that no exception is reported (timeout would indicate script didn't run)
+  const message = await wait_for_message(iframe).catch(() => ({result: 'timeout'}));
+  assert_equals(message.result, 'timeout',
+    'cookieStore in sandbox without allow-scripts should not execute script');
+}, 'cookieStore in sandboxed iframe without allow-scripts should not execute script');
+
+// Additional test: addEventListener with allow-same-origin should not throw
+promise_test(async t => {
+  const apiCall = 'cookieStore.addEventListener("change", e => {})';
+  const iframe = await load_iframe(apiCall, 'allow-same-origin');
+  iframe.contentWindow.postMessage({}, '*');
+  const message = await wait_for_message(iframe);
+  assert_equals(message.result, 'no exception',
+                'cookieStore.addEventListener with allow-same-origin should not throw');
+}, 'cookieStore.addEventListener in sandboxed iframe with allow-same-origin should not throw');
+
 </script>
+
+</write_to_file>
+</write_to_file>
